@@ -1,0 +1,135 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@font-face {
+  font-family: Dana-Regular;
+  src: url("../fonts/DanaFaNum-Regular.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: Dana-Medium;
+  src: url("../fonts/DanaFaNum-Medium.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: Dana-Bold;
+  src: url("../fonts/DanaFaNum-DemiBold.woff2") format("woff2");
+}
+
+@theme {
+  /* fonts */
+  --font-DanaRegular: "Dana-Regular";
+  --font-DanaMedium: "Dana-Medium";
+  --font-DanaBold: "Dana-Bold";
+
+  /* ==========================
+        DARK MODE COLORS
+        Kalino Forest Theme
+========================== */
+
+  --color-backgroundColor: #0b0f19;
+  --color-surfaceColor: #131826;
+  --color-surfaceHoverColor: #1b2233;
+
+  /* Brand */
+
+  --color-primaryColor: #14b8a6;
+  --color-primaryLightColor: #2dd4bf;
+  --color-primaryDarkColor: #0f766e;
+
+  /* Accent */
+
+  --color-secondaryColor: #f5a524;
+  --color-secondaryLightColor: #ffc14d;
+  --color-secondaryDarkColor: #c97f0a;
+
+  /* Text */
+
+  --color-textColor: #edeff7;
+  --color-textColorMuted: #8993ab;
+
+  /* Border */
+
+  --color-borderColor: #232b3d;
+
+  /* ==========================
+        DARK SHADOWS
+========================== */
+
+  --shadow-darkBoxShadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+  --shadow-darkCardShadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  --shadow-darkButtonShadow: 0 0 20px rgba(20, 184, 166, 0.35);
+
+  /* ==========================
+        LIGHT MODE COLORS
+========================== */
+
+  --color-lightBackgroundColor: #fbf8f2;
+  --color-lightSurfaceColor: #fffefa;
+  --color-lightSurfaceHoverColor: #f3eee3;
+  --color-lightTextColor: #2b2620;
+  --color-lightTextColorMuted: #857d6e;
+  --color-lightBorderColor: #e8e1d2;
+
+  /* ==========================
+        LIGHT SHADOWS
+========================== */
+
+  --shadow-lightBoxShadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+  --shadow-lightCardShadow: 0 15px 40px rgba(0, 0, 0, 0.08);
+  --shadow-lightButtonShadow: 0 0 15px rgba(15, 118, 110, 0.2);
+}
+
+body {
+  @apply overflow-x-hidden font-DanaRegular bg-lightBackgroundColor dark:bg-backgroundColor text-lightTextColor;
+}
+
+.container {
+
+  /* sm: 640px */
+  @media (min-width: 640px) {
+    margin: 0 auto;
+    padding: 0 2rem;
+  }
+
+  /* md: 768px */
+  @media (min-width: 768px) {
+    margin: 0 auto;
+    padding: 0 5rem;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #14b8a6;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #14b8a6;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #14b8a6;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #14b8a6;
+}
+
+.admin-content-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.admin-content-scroll::-webkit-scrollbar {
+  display: none;
+}

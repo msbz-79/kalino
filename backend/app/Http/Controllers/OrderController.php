@@ -49,7 +49,6 @@ class OrderController extends Controller
             $validated,
             $user
         ): JsonResponse {
-            // فقط آدرس متعلق به کاربر واردشده مجاز است.
             $address = Address::query()
                 ->where('user_id', $user->id)
                 ->find($validated['address_id']);
@@ -71,18 +70,16 @@ class OrderController extends Controller
                 $productId = (int) $item['product_id'];
                 $quantity = (int) $item['quantity'];
 
-                if (!isset($requiredQuantities[$productId])) {
-                    $requiredQuantities[$productId] = 0;
-                }
-
-                $requiredQuantities[$productId] += $quantity;
+                $requiredQuantities[$productId] =
+                    ($requiredQuantities[$productId] ?? 0) + $quantity;
             }
 
-            // قفل محصولات برای جلوگیری از فروش بیش از موجودی
+            // مرتب‌سازی شناسه‌ها برای کاهش احتمال بن‌بست دیتابیس
             ksort($requiredQuantities);
 
             $products = [];
 
+            // قفل محصولات و بررسی موجودی
             foreach ($requiredQuantities as $productId => $quantity) {
                 $product = Product::query()
                     ->where('is_active', true)
@@ -108,7 +105,7 @@ class OrderController extends Controller
                 $products[$productId] = $product;
             }
 
-            // محاسبه قیمت‌ها با استفاده از اطلاعات دیتابیس
+            // محاسبه قیمت‌ها بر اساس اطلاعات دیتابیس
             foreach ($validated['items'] as $item) {
                 $productId = (int) $item['product_id'];
                 $product = $products[$productId];
@@ -130,7 +127,6 @@ class OrderController extends Controller
                 ];
             }
 
-            // فعلاً تخفیف و هزینه ارسال صفر هستند.
             $discountAmount = 0;
             $shippingCost = 0;
 
@@ -139,7 +135,7 @@ class OrderController extends Controller
                 $subtotal - $discountAmount + $shippingCost
             );
 
-            // ایجاد سفارش با ذخیره اطلاعات گیرنده
+            // ایجاد سفارش
             $order = Order::create([
                 'user_id' => $user->id,
                 'address_id' => $address->id,
@@ -195,10 +191,8 @@ class OrderController extends Controller
         ]);
 
         $orders = Order::query()
-            // فقط سفارش‌های کاربر واردشده
             ->where('user_id', $request->user()->id)
 
-            // جست‌وجو بر اساس شماره سفارش
             ->when(
                 $validated['search'] ?? null,
                 fn ($query, $search) => $query->where(
@@ -208,13 +202,11 @@ class OrderController extends Controller
                 )
             )
 
-            // فیلتر وضعیت سفارش
             ->when(
                 $validated['status'] ?? null,
                 fn ($query, $status) => $query->where('status', $status)
             )
 
-            // فیلتر وضعیت پرداخت
             ->when(
                 $validated['payment_status'] ?? null,
                 fn ($query, $paymentStatus) => $query->where(
@@ -223,7 +215,6 @@ class OrderController extends Controller
                 )
             )
 
-            // فیلتر تاریخ شروع
             ->when(
                 $validated['date_from'] ?? null,
                 fn ($query, $date) => $query->whereDate(
@@ -233,7 +224,6 @@ class OrderController extends Controller
                 )
             )
 
-            // فیلتر تاریخ پایان
             ->when(
                 $validated['date_to'] ?? null,
                 fn ($query, $date) => $query->whereDate(
@@ -253,13 +243,16 @@ class OrderController extends Controller
     }
 
     /**
-     * دریافت جزئیات کامل یک سفارش متعلق به کاربر واردشده
+     * دریافت جزئیات سفارش متعلق به کاربر واردشده
      */
-    public function show(Request $request, string $orderNumber): JsonResponse
-    {
+    public function show(
+        Request $request,
+        string $orderNumber
+    ): JsonResponse {
         $order = Order::query()
             ->where('user_id', $request->user()->id)
             ->where('order_number', $orderNumber)
+            ->with('items')
             ->first();
 
         if (!$order) {
@@ -268,53 +261,285 @@ class OrderController extends Controller
             ], 404);
         }
 
-        // دریافت اقلام ذخیره‌شده سفارش
-        $order->load('items');
+        return response()->json([
+            'order' => $this->formatOrderDetails($order),
+        ]);
+    }
+
+    /**
+     * دریافت فهرست تمام سفارش‌ها برای پنل مدیریت
+     */
+    public function adminIndex(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'search' => ['nullable', 'string', 'max:100'],
+            'status' => ['nullable', 'string', 'max:50'],
+            'payment_status' => ['nullable', 'string', 'max:50'],
+            'date_from' => ['nullable', 'date'],
+            'date_to' => [
+                'nullable',
+                'date',
+                'after_or_equal:date_from',
+            ],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+        ]);
+
+        $orders = Order::query()
+
+            ->when(
+                $validated['search'] ?? null,
+                function ($query, $search) {
+                    $query->where(function ($query) use ($search) {
+                        $query
+                            ->where('order_number', 'like', "%{$search}%")
+                            ->orWhere('shipping_name', 'like', "%{$search}%")
+                            ->orWhere('shipping_mobile', 'like', "%{$search}%");
+                    });
+                }
+            )
+
+            ->when(
+                $validated['status'] ?? null,
+                fn ($query, $status) => $query->where('status', $status)
+            )
+
+            ->when(
+                $validated['payment_status'] ?? null,
+                fn ($query, $paymentStatus) => $query->where(
+                    'payment_status',
+                    $paymentStatus
+                )
+            )
+
+            ->when(
+                $validated['date_from'] ?? null,
+                fn ($query, $date) => $query->whereDate(
+                    'created_at',
+                    '>=',
+                    $date
+                )
+            )
+
+            ->when(
+                $validated['date_to'] ?? null,
+                fn ($query, $date) => $query->whereDate(
+                    'created_at',
+                    '<=',
+                    $date
+                )
+            )
+
+            ->withCount('items')
+            ->latest()
+            ->paginate($validated['per_page'] ?? 10)
+            ->withQueryString();
 
         return response()->json([
-            'order' => [
-                'id' => $order->id,
-                'order_number' => $order->order_number,
+            'orders' => $orders,
+        ]);
+    }
 
-                // وضعیت و تاریخ‌ها
-                'status' => $order->status,
-                'payment_status' => $order->payment_status,
-                'created_at' => $order->created_at,
-                'paid_at' => $order->paid_at,
+    /**
+     * دریافت جزئیات یک سفارش برای مدیر
+     */
+    public function adminShow(string $orderNumber): JsonResponse
+    {
+        $order = Order::query()
+            ->where('order_number', $orderNumber)
+            ->with('items')
+            ->first();
 
-                // اطلاعات پرداخت
-                'payment_provider' => $order->payment_provider,
-                'transaction_id' => $order->transaction_id,
+        if (!$order) {
+            return response()->json([
+                'message' => 'سفارش موردنظر پیدا نشد.',
+            ], 404);
+        }
 
-                // مبالغ
-                'subtotal' => $order->subtotal,
-                'discount_amount' => $order->discount_amount,
-                'shipping_cost' => $order->shipping_cost,
-                'total_amount' => $order->total_amount,
+        return response()->json([
+            'order' => $this->formatOrderDetails($order),
+        ]);
+    }
 
-                // اطلاعات گیرنده و آدرس که هنگام ثبت سفارش ذخیره شده‌اند
-                'shipping_name' => $order->shipping_name,
-                'shipping_mobile' => $order->shipping_mobile,
-                'shipping_province' => $order->shipping_province,
-                'shipping_city' => $order->shipping_city,
-                'shipping_address' => $order->shipping_address,
-                'shipping_postal_code' => $order->shipping_postal_code,
-                'customer_note' => $order->customer_note,
-
-                // اطلاعات محصولات ذخیره‌شده در زمان ثبت سفارش
-                'items' => $order->items->map(function ($item) {
-                    return [
-                        'id' => $item->id,
-                        'product_id' => $item->product_id,
-                        'product_name' => $item->product_name,
-                        'product_image' => $item->product_image,
-                        'selected_color' => $item->selected_color,
-                        'price' => $item->unit_price,
-                        'quantity' => $item->quantity,
-                        'total' => $item->line_total,
-                    ];
-                })->values(),
+    /**
+     * تغییر وضعیت سفارش توسط مدیر
+     */
+    public function adminUpdateStatus(
+        Request $request,
+        string $orderNumber
+    ): JsonResponse {
+        $validated = $request->validate([
+            'status' => [
+                'required',
+                'in:pending,processing,shipped,delivered,cancelled,returned',
             ],
         ]);
+
+        $result = DB::transaction(function () use (
+            $validated,
+            $orderNumber
+        ) {
+            $order = Order::query()
+                ->where('order_number', $orderNumber)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$order) {
+                return [
+                    'error' => true,
+                    'status_code' => 404,
+                    'message' => 'سفارش موردنظر پیدا نشد.',
+                ];
+            }
+
+            $currentStatus = $order->status;
+            $newStatus = $validated['status'];
+
+            if ($currentStatus === $newStatus) {
+                return [
+                    'error' => true,
+                    'status_code' => 422,
+                    'message' => 'سفارش در حال حاضر همین وضعیت را دارد.',
+                ];
+            }
+
+            // وضعیت‌های مجاز بعدی
+            $allowedTransitions = [
+                'pending' => [
+                    'processing',
+                    'cancelled',
+                ],
+                'processing' => [
+                    'shipped',
+                    'cancelled',
+                ],
+                'shipped' => [
+                    'delivered',
+                    'returned',
+                ],
+                'delivered' => [
+                    'returned',
+                ],
+                'cancelled' => [],
+                'returned' => [],
+            ];
+
+            if (!in_array(
+                $newStatus,
+                $allowedTransitions[$currentStatus] ?? [],
+                true
+            )) {
+                return [
+                    'error' => true,
+                    'status_code' => 422,
+                    'message' => 'تغییر وضعیت از حالت فعلی به وضعیت انتخاب‌شده مجاز نیست.',
+                ];
+            }
+
+            // لغو سفارش پرداخت‌شده بدون بازپرداخت مجاز نیست.
+            if (
+                $newStatus === 'cancelled' &&
+                $order->payment_status === 'paid'
+            ) {
+                return [
+                    'error' => true,
+                    'status_code' => 422,
+                    'message' => 'این سفارش پرداخت شده است. ابتدا باید فرایند بازپرداخت وجه انجام شود.',
+                ];
+            }
+
+            // بازگرداندن موجودی فقط هنگام ورود به وضعیت لغو یا مرجوعی
+            if (in_array($newStatus, ['cancelled', 'returned'], true)) {
+                $items = $order->items()->get();
+
+                foreach ($items as $item) {
+                    if (!$item->product_id) {
+                        continue;
+                    }
+
+                    DB::table('products')
+                        ->where('id', $item->product_id)
+                        ->increment('stock', $item->quantity);
+                }
+            }
+
+            $order->update([
+                'status' => $newStatus,
+            ]);
+
+            return [
+                'error' => false,
+                'order' => $order->fresh(),
+            ];
+        });
+
+        if ($result['error']) {
+            return response()->json([
+                'message' => $result['message'],
+            ], $result['status_code']);
+        }
+
+        $messages = [
+            'pending' => 'وضعیت سفارش به در انتظار بررسی تغییر کرد.',
+            'processing' => 'سفارش با موفقیت تأیید شد.',
+            'shipped' => 'وضعیت سفارش به ارسال شده تغییر کرد.',
+            'delivered' => 'سفارش با موفقیت تحویل داده شد.',
+            'cancelled' => 'سفارش لغو شد و موجودی محصولات بازگردانده شد.',
+            'returned' => 'سفارش مرجوع شد و موجودی محصولات بازگردانده شد.',
+        ];
+
+        return response()->json([
+            'message' => $messages[$validated['status']],
+            'order' => $result['order'],
+        ]);
+    }
+
+    /**
+     * یکسان‌سازی ساختار خروجی جزئیات سفارش
+     */
+    private function formatOrderDetails(Order $order): array
+    {
+        return [
+            'id' => $order->id,
+            'order_number' => $order->order_number,
+
+            // وضعیت و تاریخ‌ها
+            'status' => $order->status,
+            'payment_status' => $order->payment_status,
+            'created_at' => $order->created_at,
+            'paid_at' => $order->paid_at,
+
+            // اطلاعات پرداخت
+            'payment_provider' => $order->payment_provider,
+            'transaction_id' => $order->transaction_id,
+
+            // مبالغ
+            'subtotal' => $order->subtotal,
+            'discount_amount' => $order->discount_amount,
+            'shipping_cost' => $order->shipping_cost,
+            'total_amount' => $order->total_amount,
+
+            // اطلاعات گیرنده و آدرس
+            'shipping_name' => $order->shipping_name,
+            'shipping_mobile' => $order->shipping_mobile,
+            'shipping_province' => $order->shipping_province,
+            'shipping_city' => $order->shipping_city,
+            'shipping_address' => $order->shipping_address,
+            'shipping_postal_code' => $order->shipping_postal_code,
+            'customer_note' => $order->customer_note,
+
+            // اقلام سفارش
+            'items' => $order->items->map(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'product_id' => $item->product_id,
+                    'product_name' => $item->product_name,
+                    'product_image' => $item->product_image,
+                    'selected_color' => $item->selected_color,
+                    'price' => $item->unit_price,
+                    'quantity' => $item->quantity,
+                    'total' => $item->line_total,
+                ];
+            })->values(),
+        ];
     }
 }

@@ -25,12 +25,19 @@ type OrderResponse = {
 
 type RequestState = "loading" | "success" | "failed" | "error";
 
+type PaymentType = "wallet" | "order" | "unknown";
+
 const API_URL = "http://localhost:8000/api";
 
 export default function PaymentResultPage() {
   const [searchParams] = useSearchParams();
 
   const orderNumber = searchParams.get("order");
+  const paymentType = searchParams.get("type");
+  const paymentStatus = searchParams.get("status");
+
+  const isWalletPayment = paymentType === "wallet";
+  const isOrderPayment = paymentType === "order" || Boolean(orderNumber);
 
   const [order, setOrder] = useState<OrderInfo | null>(null);
   const [requestState, setRequestState] =
@@ -41,9 +48,31 @@ export default function PaymentResultPage() {
     let cancelled = false;
 
     async function fetchOrder() {
+      // نتیجه شارژ کیف پول از مسیر جداگانه مدیریت می‌شود.
+      if (isWalletPayment) {
+        setOrder(null);
+        setErrorMessage("");
+
+        if (paymentStatus === "success") {
+          setRequestState("success");
+        } else if (paymentStatus === "failed") {
+          setRequestState("failed");
+        } else {
+          setRequestState("error");
+          setErrorMessage(
+            "وضعیت پرداخت کیف پول مشخص نیست. لطفاً وضعیت تراکنش را بررسی کنید."
+          );
+        }
+
+        return;
+      }
+
+      // پرداخت سفارش باید شماره سفارش داشته باشد.
       if (!orderNumber) {
         setRequestState("error");
-        setErrorMessage("شماره سفارش در آدرس صفحه وجود ندارد.");
+        setErrorMessage(
+          "شماره سفارش در آدرس صفحه وجود ندارد."
+        );
         return;
       }
 
@@ -71,14 +100,18 @@ export default function PaymentResultPage() {
         }
 
         if (!data.order) {
-          throw new Error("اطلاعات سفارش در پاسخ سرور موجود نیست.");
+          throw new Error(
+            "اطلاعات سفارش در پاسخ سرور موجود نیست."
+          );
         }
 
         if (cancelled) return;
 
         setOrder(data.order);
         setRequestState(
-          data.order.payment_status === "paid" ? "success" : "failed"
+          data.order.payment_status === "paid"
+            ? "success"
+            : "failed"
         );
       } catch (error) {
         if (cancelled) return;
@@ -97,7 +130,7 @@ export default function PaymentResultPage() {
     return () => {
       cancelled = true;
     };
-  }, [orderNumber]);
+  }, [orderNumber, isWalletPayment, paymentStatus]);
 
   const isSuccess = requestState === "success";
   const isLoading = requestState === "loading";
@@ -105,6 +138,30 @@ export default function PaymentResultPage() {
 
   const formatAmount = (amount: number | string) =>
     Number(amount).toLocaleString("fa-IR");
+
+  const pageTitle = isLoading
+    ? "در حال بررسی پرداخت"
+    : isSuccess
+      ? isWalletPayment
+        ? "شارژ کیف پول با موفقیت انجام شد"
+        : "پرداخت با موفقیت انجام شد"
+      : isError
+        ? "بررسی وضعیت پرداخت ممکن نشد"
+        : isWalletPayment
+          ? "شارژ کیف پول ناموفق بود"
+          : "پرداخت تأیید نشده است";
+
+  const pageDescription = isLoading
+    ? "لطفاً صبر کنید تا وضعیت واقعی سفارش از سرور دریافت شود."
+    : isSuccess
+      ? isWalletPayment
+        ? "درخواست شارژ کیف پول با موفقیت تأیید شده است."
+        : "پرداخت شما توسط سرور تأیید شده است. می‌توانید جزئیات سفارش را پیگیری کنید."
+      : isError
+        ? errorMessage
+        : isWalletPayment
+          ? "پرداخت شارژ کیف پول تأیید نشده است. اگر مبلغی از حساب شما کسر شده، وضعیت تراکنش را بررسی کنید."
+          : "در حال حاضر پرداخت این سفارش در دیتابیس تأیید نشده است. اگر پرداخت را انجام داده‌اید، کمی بعد دوباره وضعیت را بررسی کنید.";
 
   return (
     <main
@@ -138,23 +195,11 @@ export default function PaymentResultPage() {
         {/* عنوان و توضیحات */}
         <div className="mb-8 text-center">
           <h1 className="mb-3 font-DanaMedium text-xl leading-9 text-gray-800 dark:text-textColor sm:text-2xl">
-            {isLoading
-              ? "در حال بررسی پرداخت"
-              : isSuccess
-                ? "پرداخت با موفقیت انجام شد"
-                : isError
-                  ? "بررسی وضعیت سفارش ممکن نشد"
-                  : "پرداخت تأیید نشده است"}
+            {pageTitle}
           </h1>
 
           <p className="mx-auto max-w-sm text-sm leading-7 text-gray-600 dark:text-textColorMuted">
-            {isLoading
-              ? "لطفاً صبر کنید تا وضعیت واقعی سفارش از سرور دریافت شود."
-              : isSuccess
-                ? "پرداخت شما توسط سرور تأیید شده است. می‌توانید جزئیات سفارش را پیگیری کنید."
-                : isError
-                  ? errorMessage
-                  : "در حال حاضر پرداخت این سفارش در دیتابیس تأیید نشده است. اگر پرداخت را انجام داده‌اید، کمی بعد دوباره وضعیت را بررسی کنید."}
+            {pageDescription}
           </p>
         </div>
 
@@ -187,7 +232,9 @@ export default function PaymentResultPage() {
                   <IoCloseCircleOutline size={18} />
                 )}
 
-                {isSuccess ? "پرداخت موفق" : "پرداخت تأیید نشده"}
+                {isSuccess
+                  ? "پرداخت موفق"
+                  : "پرداخت تأیید نشده"}
               </span>
             </div>
 
@@ -215,9 +262,52 @@ export default function PaymentResultPage() {
           </div>
         )}
 
+        {/* اطلاعات شارژ کیف پول */}
+        {isWalletPayment && (
+          <div className="mb-8 rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-white/10 dark:bg-backgroundColor">
+            <span className="mb-2 block text-xs text-gray-500 dark:text-textColorMuted">
+              نوع تراکنش
+            </span>
+
+            <span className="font-DanaMedium text-sm text-gray-800 dark:text-textColor">
+              شارژ کیف پول کالینو
+            </span>
+
+            <div className="mt-4 border-t border-gray-200 pt-3 dark:border-white/10">
+              <span className="block text-xs leading-6 text-gray-600 dark:text-textColorMuted">
+                وضعیت تراکنش
+              </span>
+
+              <span
+                className={`mt-1 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-DanaMedium text-sm ${
+                  isSuccess
+                    ? "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-400"
+                    : isError
+                      ? "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400"
+                      : "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400"
+                }`}
+              >
+                {isSuccess ? (
+                  <IoCheckmarkCircleOutline size={18} />
+                ) : isError ? (
+                  <IoTimeOutline size={18} />
+                ) : (
+                  <IoCloseCircleOutline size={18} />
+                )}
+
+                {isSuccess
+                  ? "شارژ موفق"
+                  : isError
+                    ? "وضعیت نامشخص"
+                    : "شارژ ناموفق"}
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* دکمه‌ها */}
         <div className="flex flex-col gap-3">
-          {isError && (
+          {isError && !isWalletPayment && (
             <button
               type="button"
               onClick={() => window.location.reload()}
@@ -247,10 +337,12 @@ export default function PaymentResultPage() {
 
         <p className="mt-6 text-center text-xs leading-6 text-gray-500 dark:text-textColorMuted">
           {isSuccess
-            ? "از خرید شما از کالینو سپاسگزاریم."
+            ? isWalletPayment
+              ? "کیف پول کالینو را برای مشاهده موجودی به‌روز بررسی کنید."
+              : "از خرید شما از کالینو سپاسگزاریم."
             : isLoading
               ? "در حال دریافت اطلاعات سفارش از سرور..."
-              : "برای اطمینان از وضعیت پرداخت، اطلاعات سفارش را از حساب کاربری خود نیز بررسی کنید."}
+              : "برای اطمینان از وضعیت پرداخت، اطلاعات را از حساب کاربری خود نیز بررسی کنید."}
         </p>
       </section>
     </main>

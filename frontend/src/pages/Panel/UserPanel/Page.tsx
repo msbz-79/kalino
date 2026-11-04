@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import type { FormEvent } from "react";
 import { Link } from "react-router";
 import {
   FiShoppingBag,
@@ -10,9 +11,13 @@ import {
   FiClock,
   FiCheckCircle,
   FiStar,
+  FiPlus,
+  FiX,
 } from "react-icons/fi";
+import toast from "react-hot-toast";
 
 const API_URL = "http://localhost:8000/api";
+const CSRF_URL = "http://localhost:8000/sanctum/csrf-cookie";
 
 type CommentStatus = "pending" | "approved" | "rejected";
 
@@ -42,87 +47,187 @@ type RecentComment = {
   statusStyle: string;
 };
 
+type ApiOrder = {
+  id: number;
+  order_number?: string;
+  status: string;
+  payment_status: string;
+  total_amount: string | number;
+  created_at: string;
+};
+
+type DashboardResponse = {
+  dashboard: {
+    wallet_balance: string | number;
+    orders_count: number;
+    comments_count: number;
+    recent_orders: ApiOrder[];
+  };
+};
+
+type RecentOrder = {
+  id: number;
+  date: string;
+  amount: string;
+  status: string;
+  statusStyle: string;
+  icon: typeof FiCheckCircle;
+};
+
+type DepositResponse = {
+  message?: string;
+  payment_url?: string;
+  transaction_id?: number;
+  errors?: Record<string, string[]>;
+};
+
+async function getCsrfToken(): Promise<string> {
+  const response = await fetch(CSRF_URL, {
+    method: "GET",
+    credentials: "include",
+    headers: {
+      Accept: "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("دریافت توکن امنیتی ناموفق بود. دوباره تلاش کنید.");
+  }
+
+  const cookie = document.cookie
+    .split("; ")
+    .find((item) => item.startsWith("XSRF-TOKEN="));
+
+  if (!cookie) {
+    throw new Error(
+      "کوکی CSRF در دسترس نیست. تنظیمات دامنه و کوکی‌های بک‌اند را بررسی کنید.",
+    );
+  }
+
+  return decodeURIComponent(
+    cookie.substring("XSRF-TOKEN=".length),
+  );
+}
+
 const statistics = [
   {
     title: "تعداد سفارشات",
-    value: "۱۲",
     description: "کل سفارش‌های ثبت‌شده",
     icon: FiShoppingBag,
     iconStyle: "bg-primaryColor/10 text-primaryColor",
     link: "/panel/orders",
+    key: "orders",
   },
   {
     title: "موجودی کیف پول",
-    value: "۲,۵۰۰,۰۰۰",
-    unit: "تومان",
     description: "موجودی قابل استفاده",
     icon: FiCreditCard,
     iconStyle:
       "bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400",
     link: "/panel",
+    key: "wallet",
   },
   {
     title: "تعداد نظرات",
-    value: "۸",
     description: "کل نظرات ثبت‌شده",
     icon: FiMessageSquare,
     iconStyle:
       "bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400",
     link: "/panel/comments",
+    key: "comments",
   },
   {
     title: "تعداد تیکت‌ها",
-    value: "۲",
     description: "کل تیکت‌های ثبت‌شده",
     icon: FiHeadphones,
     iconStyle:
       "bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400",
     link: "/panel/tickets",
+    key: "tickets",
   },
-];
+] as const;
 
-const recentOrders = [
-  {
-    id: "1245",
-    date: "۱۴۰۵/۰۷/۲۲",
-    amount: "۲۵,۰۰۰,۰۰۰ تومان",
-    status: "تحویل‌شده",
-    statusStyle:
-      "bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400",
-    icon: FiCheckCircle,
-  },
-  {
-    id: "1244",
-    date: "۱۴۰۵/۰۷/۲۰",
-    amount: "۱۸,۵۰۰,۰۰۰ تومان",
-    status: "در حال پردازش",
-    statusStyle:
-      "bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400",
-    icon: FiClock,
-  },
-  {
-    id: "1243",
-    date: "۱۴۰۵/۰۷/۱۸",
-    amount: "۹,۸۰۰,۰۰۰ تومان",
-    status: "در انتظار پرداخت",
-    statusStyle:
-      "bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400",
-    icon: FiPackage,
-  },
-];
+const orderStatusLabels: Record<string, string> = {
+  pending: "در انتظار بررسی",
+  processing: "در حال پردازش",
+  confirmed: "تأیید شده",
+  shipped: "ارسال شده",
+  delivered: "تحویل‌شده",
+  cancelled: "لغو شده",
+  returned: "مرجوع شده",
+};
 
-function formatDate(date: string): string {
-  const parsedDate = new Date(date);
+const paymentStatusLabels: Record<string, string> = {
+  pending: "در انتظار پرداخت",
+  paid: "پرداخت‌شده",
+  failed: "پرداخت ناموفق",
+  cancelled: "پرداخت لغو شده",
+  refunded: "مسترد شده",
+};
 
-  if (Number.isNaN(parsedDate.getTime())) {
-    return "—";
+function getStatusStyle(status: string) {
+  switch (status) {
+    case "paid":
+    case "delivered":
+    case "confirmed":
+      return "bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400";
+
+    case "pending":
+    case "processing":
+      return "bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400";
+
+    case "shipped":
+      return "bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400";
+
+    case "failed":
+    case "cancelled":
+    case "returned":
+      return "bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400";
+
+    default:
+      return "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300";
+  }
+}
+
+function getOrderStatus(order: ApiOrder) {
+  if (order.payment_status !== "paid") {
+    return {
+      label:
+        paymentStatusLabels[order.payment_status] ??
+        orderStatusLabels[order.status] ??
+        "نامشخص",
+      style: getStatusStyle(order.payment_status),
+      icon: FiClock,
+    };
   }
 
+  return {
+    label: orderStatusLabels[order.status] ?? "نامشخص",
+    style: getStatusStyle(order.status),
+    icon:
+      order.status === "delivered" ? FiCheckCircle : FiPackage,
+  };
+}
+
+function formatPrice(value: string | number | undefined) {
+  const amount = Number(value ?? 0);
+
+  return `${(Number.isFinite(amount) ? amount : 0).toLocaleString("fa-IR")} تومان`;
+}
+
+function formatDate(value: string | null | undefined): string {
+  if (!value) return "—";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "—";
+
   return new Intl.DateTimeFormat("fa-IR", {
+    calendar: "persian",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).format(parsedDate);
+  }).format(date);
 }
 
 function mapComment(comment: ApiComment): RecentComment {
@@ -182,7 +287,7 @@ function SectionHeader({
 
       <Link
         to={to}
-        className="flex shrink-0 items-center gap-2 rounded-lg border border-lightBorderColor px-3 py-2 text-sm text-lightTextColor transition hover:border-primaryColor hover:text-primaryColor dark:border-borderColor dark:text-textColor"
+        className="flex shrink-0 cursor-pointer items-center gap-2 rounded-lg border border-lightBorderColor px-3 py-2 text-sm text-lightTextColor transition hover:border-primaryColor hover:text-primaryColor dark:border-borderColor dark:text-textColor"
       >
         مشاهده همه
         <FiArrowLeft size={15} />
@@ -192,9 +297,67 @@ function SectionHeader({
 }
 
 export default function Panel() {
+  const [dashboard, setDashboard] = useState<
+    DashboardResponse["dashboard"]
+  >({
+    wallet_balance: 0,
+    orders_count: 0,
+    comments_count: 0,
+    recent_orders: [],
+  });
+
+  const [dashboardLoading, setDashboardLoading] = useState(true);
+  const [dashboardError, setDashboardError] = useState("");
+
   const [recentComments, setRecentComments] = useState<RecentComment[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(true);
   const [commentsError, setCommentsError] = useState("");
+
+  const [depositModalOpen, setDepositModalOpen] = useState(false);
+  const [depositAmount, setDepositAmount] = useState("100000");
+  const [depositLoading, setDepositLoading] = useState(false);
+
+  const loadDashboard = useCallback(async () => {
+    setDashboardLoading(true);
+    setDashboardError("");
+
+    try {
+      const response = await fetch(`${API_URL}/dashboard`, {
+        method: "GET",
+        credentials: "include",
+        headers: {
+          Accept: "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error(
+            "برای مشاهده داشبورد، ابتدا وارد حساب کاربری شوید.",
+          );
+        }
+
+        throw new Error("دریافت اطلاعات داشبورد با خطا مواجه شد.");
+      }
+
+      const data: DashboardResponse = await response.json();
+
+      setDashboard({
+        wallet_balance: data.dashboard.wallet_balance ?? 0,
+        orders_count: data.dashboard.orders_count ?? 0,
+        comments_count: data.dashboard.comments_count ?? 0,
+        recent_orders: data.dashboard.recent_orders ?? [],
+      });
+    } catch (error) {
+      setDashboardError(
+        error instanceof Error
+          ? error.message
+          : "دریافت اطلاعات داشبورد با خطا مواجه شد.",
+      );
+    } finally {
+      setDashboardLoading(false);
+    }
+  }, []);
 
   const loadRecentComments = useCallback(async () => {
     setCommentsLoading(true);
@@ -211,7 +374,9 @@ export default function Panel() {
 
       if (!response.ok) {
         if (response.status === 401) {
-          throw new Error("برای مشاهده نظرات، ابتدا وارد حساب کاربری شوید.");
+          throw new Error(
+            "برای مشاهده نظرات، ابتدا وارد حساب کاربری شوید.",
+          );
         }
 
         throw new Error("دریافت نظرات با خطا مواجه شد.");
@@ -219,11 +384,9 @@ export default function Panel() {
 
       const data: PaginatedComments = await response.json();
 
-      const mappedComments = data.data
-        .map(mapComment)
-        .slice(0, 3);
-
-      setRecentComments(mappedComments);
+      setRecentComments(
+        (data.data ?? []).slice(0, 3).map(mapComment),
+      );
     } catch (error) {
       setCommentsError(
         error instanceof Error
@@ -236,12 +399,93 @@ export default function Panel() {
   }, []);
 
   useEffect(() => {
+    void loadDashboard();
     void loadRecentComments();
-  }, [loadRecentComments]);
+  }, [loadDashboard, loadRecentComments]);
+
+  const handleDeposit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const amount = Number(depositAmount);
+
+    if (!Number.isInteger(amount) || amount < 1000 || amount > 50000000) {
+      toast.error("مبلغ شارژ باید بین ۱,۰۰۰ تا ۵۰,۰۰۰,۰۰۰ تومان باشد.");
+      return;
+    }
+
+    setDepositLoading(true);
+
+    try {
+      // دریافت کوکی CSRF پیش از درخواست POST
+      const csrfToken = await getCsrfToken();
+
+      const response = await fetch(`${API_URL}/wallet/deposit`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          "X-XSRF-TOKEN": csrfToken,
+        },
+        body: JSON.stringify({ amount }),
+      });
+
+      const data: DepositResponse = await response.json();
+
+      if (!response.ok) {
+        const validationMessage = data.errors
+          ? Object.values(data.errors).flat()[0]
+          : undefined;
+
+        throw new Error(
+          validationMessage ??
+            data.message ??
+            "شروع فرایند شارژ کیف پول ناموفق بود.",
+        );
+      }
+
+      if (!data.payment_url) {
+        throw new Error("آدرس پرداخت از سمت سرور دریافت نشد.");
+      }
+
+      toast.success("در حال انتقال به درگاه پرداخت...");
+      window.location.assign(data.payment_url);
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "خطا در اتصال به درگاه پرداخت.",
+      );
+
+      setDepositLoading(false);
+    }
+  };
+
+  const recentOrders: RecentOrder[] = dashboard.recent_orders.map((order) => {
+    const status = getOrderStatus(order);
+
+    return {
+      id: order.id,
+      date: formatDate(order.created_at),
+      amount: formatPrice(order.total_amount),
+      status: status.label,
+      statusStyle: status.style,
+      icon: status.icon,
+    };
+  });
+
+  const statValues: Record<
+    (typeof statistics)[number]["key"],
+    string
+  > = {
+    orders: dashboard.orders_count.toLocaleString("fa-IR"),
+    wallet: Number(dashboard.wallet_balance).toLocaleString("fa-IR"),
+    comments: dashboard.comments_count.toLocaleString("fa-IR"),
+    tickets: "—",
+  };
 
   return (
     <div dir="rtl" className="w-full min-w-0 space-y-5 pb-6">
-      {/* عنوان داشبورد */}
       <section className="w-full rounded-xl border border-lightBorderColor bg-lightSurfaceColor p-5 dark:border-borderColor dark:bg-surfaceColor">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primaryColor/10 text-primaryColor">
@@ -260,35 +504,50 @@ export default function Panel() {
         </div>
       </section>
 
-      {/* کارت‌های آماری */}
+      {dashboardError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600 dark:border-red-900 dark:bg-red-900/20 dark:text-red-400">
+          <p>{dashboardError}</p>
+
+          <button
+            type="button"
+            onClick={() => void loadDashboard()}
+            className="mt-2 cursor-pointer text-sm underline"
+          >
+            تلاش دوباره
+          </button>
+        </div>
+      )}
+
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {statistics.map((item) => {
           const Icon = item.icon;
 
           return (
-            <Link
+            <div
               key={item.title}
-              to={item.link}
               className="group min-w-0 rounded-xl border border-lightBorderColor bg-lightSurfaceColor p-5 transition hover:border-primaryColor/40 hover:shadow-sm dark:border-borderColor dark:bg-surfaceColor"
             >
               <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
+                <Link
+                  to={item.link}
+                  className="min-w-0 flex-1 cursor-pointer"
+                >
                   <p className="text-sm text-lightTextColorMuted dark:text-textColorMuted">
                     {item.title}
                   </p>
 
                   <div className="mt-4 flex flex-wrap items-baseline gap-1.5">
                     <span className="break-words text-2xl font-DanaMedium text-lightTextColor dark:text-textColor">
-                      {item.value}
+                      {dashboardLoading ? "..." : statValues[item.key]}
                     </span>
 
-                    {item.unit && (
+                    {item.key === "wallet" && (
                       <span className="text-xs text-lightTextColorMuted dark:text-textColorMuted">
-                        {item.unit}
+                        تومان
                       </span>
                     )}
                   </div>
-                </div>
+                </Link>
 
                 <div
                   className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${item.iconStyle}`}
@@ -297,17 +556,28 @@ export default function Panel() {
                 </div>
               </div>
 
-              <div className="mt-4 border-t border-lightBorderColor pt-3 dark:border-borderColor">
+              <div className="mt-4 flex items-center justify-between gap-2 border-t border-lightBorderColor pt-3 dark:border-borderColor">
                 <p className="text-xs text-lightTextColorMuted dark:text-textColorMuted">
                   {item.description}
                 </p>
+
+                {item.key === "wallet" && (
+                  <button
+                    type="button"
+                    aria-label="شارژ کیف پول"
+                    title="شارژ کیف پول"
+                    onClick={() => setDepositModalOpen(true)}
+                    className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg bg-primaryColor/10 text-primaryColor transition hover:bg-primaryColor/20"
+                  >
+                    <FiPlus size={18} />
+                  </button>
+                )}
               </div>
-            </Link>
+            </div>
           );
         })}
       </section>
 
-      {/* آخرین سفارشات */}
       <section className="w-full min-w-0 overflow-hidden rounded-xl border border-lightBorderColor bg-lightSurfaceColor dark:border-borderColor dark:bg-surfaceColor">
         <div className="border-b border-lightBorderColor p-5 dark:border-borderColor">
           <SectionHeader
@@ -317,7 +587,11 @@ export default function Panel() {
           />
         </div>
 
-        {recentOrders.length > 0 ? (
+        {dashboardLoading ? (
+          <div className="px-4 py-10 text-center text-sm text-lightTextColorMuted dark:text-textColorMuted">
+            در حال دریافت سفارش‌ها...
+          </div>
+        ) : recentOrders.length > 0 ? (
           <div>
             {recentOrders.map((order) => {
               const StatusIcon = order.icon;
@@ -334,7 +608,8 @@ export default function Panel() {
 
                     <div className="min-w-0">
                       <p className="text-sm font-DanaMedium text-lightTextColor dark:text-textColor">
-                        سفارش شماره {order.id}
+                        سفارش شماره{" "}
+                        {(order.id).toLocaleString("fa-IR")}
                       </p>
 
                       <p className="mt-1 text-xs text-lightTextColorMuted dark:text-textColorMuted">
@@ -368,7 +643,7 @@ export default function Panel() {
         <div className="border-t border-lightBorderColor p-3 dark:border-borderColor sm:hidden">
           <Link
             to="/panel/orders"
-            className="flex items-center justify-center gap-2 rounded-lg py-2 text-sm text-primaryColor"
+            className="flex cursor-pointer items-center justify-center gap-2 rounded-lg py-2 text-sm text-primaryColor"
           >
             مشاهده تمام سفارشات
             <FiArrowLeft size={16} />
@@ -376,7 +651,6 @@ export default function Panel() {
         </div>
       </section>
 
-      {/* آخرین نظرات واقعی کاربر */}
       <section className="w-full min-w-0 overflow-hidden rounded-xl border border-lightBorderColor bg-lightSurfaceColor dark:border-borderColor dark:bg-surfaceColor">
         <div className="border-b border-lightBorderColor p-5 dark:border-borderColor">
           <SectionHeader
@@ -399,7 +673,7 @@ export default function Panel() {
             <button
               type="button"
               onClick={() => void loadRecentComments()}
-              className="mt-3 text-sm text-primaryColor"
+              className="mt-3 cursor-pointer text-sm text-primaryColor"
             >
               تلاش دوباره
             </button>
@@ -448,13 +722,104 @@ export default function Panel() {
         <div className="border-t border-lightBorderColor p-3 dark:border-borderColor sm:hidden">
           <Link
             to="/panel/comments"
-            className="flex items-center justify-center gap-2 rounded-lg py-2 text-sm text-primaryColor"
+            className="flex cursor-pointer items-center justify-center gap-2 rounded-lg py-2 text-sm text-primaryColor"
           >
             مشاهده تمام نظرات
             <FiArrowLeft size={16} />
           </Link>
         </div>
       </section>
+
+      {depositModalOpen && (
+        <div
+          className="fixed inset-0 z-30 flex items-center justify-center bg-black/50 p-4"
+          onClick={(event) => {
+            if (
+              event.target === event.currentTarget &&
+              !depositLoading
+            ) {
+              setDepositModalOpen(false);
+            }
+          }}
+        >
+          <div
+            dir="rtl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="deposit-title"
+            className="w-full max-w-md rounded-2xl border border-lightBorderColor bg-lightSurfaceColor p-5 shadow-xl dark:border-borderColor dark:bg-surfaceColor"
+          >
+            <div className="mb-5 flex items-center justify-between gap-3">
+              <h2
+                id="deposit-title"
+                className="text-lg font-DanaMedium text-lightTextColor dark:text-textColor"
+              >
+                شارژ کیف پول
+              </h2>
+
+              <button
+                type="button"
+                aria-label="بستن"
+                disabled={depositLoading}
+                onClick={() => setDepositModalOpen(false)}
+                className="cursor-pointer rounded-lg p-2 text-lightTextColorMuted transition hover:bg-lightSurfaceHoverColor disabled:cursor-not-allowed dark:text-textColorMuted dark:hover:bg-surfaceHoverColor"
+              >
+                <FiX size={20} />
+              </button>
+            </div>
+
+            <p className="mb-4 text-sm text-lightTextColorMuted dark:text-textColorMuted">
+              مبلغ موردنظر را به تومان وارد کنید. سپس به درگاه زرین‌پال منتقل می‌شوید.
+            </p>
+
+            <form onSubmit={handleDeposit}>
+              <label
+                htmlFor="deposit-amount"
+                className="mb-2 block text-sm text-lightTextColor dark:text-textColor"
+              >
+                مبلغ شارژ (تومان)
+              </label>
+
+              <input
+                id="deposit-amount"
+                type="number"
+                min={1000}
+                max={50000000}
+                step={1000}
+                required
+                disabled={depositLoading}
+                value={depositAmount}
+                onChange={(event) => setDepositAmount(event.target.value)}
+                className="w-full rounded-xl border border-lightBorderColor bg-transparent px-4 py-3 text-lightTextColor outline-none transition focus:border-primaryColor dark:border-borderColor dark:text-textColor"
+                placeholder="مثلاً ۱۰۰۰۰۰"
+              />
+
+              <p className="mt-2 text-xs text-lightTextColorMuted dark:text-textColorMuted">
+                حداقل ۱,۰۰۰ و حداکثر ۵۰,۰۰۰,۰۰۰ تومان
+              </p>
+
+              <div className="mt-5 flex gap-3">
+                <button
+                  type="submit"
+                  disabled={depositLoading}
+                  className="flex-1 cursor-pointer rounded-xl bg-primaryColor px-4 py-3 text-sm text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {depositLoading ? "در حال اتصال..." : "پرداخت و شارژ"}
+                </button>
+
+                <button
+                  type="button"
+                  disabled={depositLoading}
+                  onClick={() => setDepositModalOpen(false)}
+                  className="cursor-pointer rounded-xl border border-lightBorderColor px-4 py-3 text-sm text-lightTextColor transition hover:bg-lightSurfaceHoverColor disabled:cursor-not-allowed dark:border-borderColor dark:text-textColor dark:hover:bg-surfaceHoverColor"
+                >
+                  انصراف
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

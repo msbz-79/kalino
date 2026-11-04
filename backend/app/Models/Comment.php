@@ -15,6 +15,7 @@ class Comment extends Model
         'product_id',
         'rating',
         'text',
+        'status',
     ];
 
     public function user(): BelongsTo
@@ -26,5 +27,4 @@ class Comment extends Model
     {
         return $this->belongsTo(Product::class);
     }
-    
 }

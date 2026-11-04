@@ -26,6 +26,7 @@ import CartPage from "./pages/Cart/Page";
 import CheckoutPage from "./pages/Checkout/CheckoutPage";
 import ReviewOrderPage from "./pages/ReviewOrder/Page";
 import PaymentResultPage from "./pages/PaymentResult/Page";
+import AccountInformation from "./pages/UserInformation/Page";
 
 const router = createBrowserRouter([
   {
@@ -57,6 +58,7 @@ const router = createBrowserRouter([
           { path: "locations", element: <Locations /> },
           { path: "comments", element: <Comments /> },
           { path: "tickets", element: <Tickets /> },
+          { path: "information", element: <AccountInformation /> },
         ],
       },
     ],
@@ -75,6 +77,8 @@ const router = createBrowserRouter([
           { path: "financial", element: <Financial /> },
           { path: "usercomments", element: <UserComments /> },
           { path: "usertickets", element: <UserTickets /> },
+          { path: "information", element: <AccountInformation /> },
+
         ],
       },
     ],

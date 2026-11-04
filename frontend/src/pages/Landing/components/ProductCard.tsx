@@ -1,4 +1,3 @@
-
 import { Link } from "react-router";
 
 type Product = {
@@ -18,8 +17,12 @@ type ProductCardProps = {
 function ProductCard({ product }: ProductCardProps) {
     const name = product?.name ?? "محصول";
     const image = product?.image ?? "/images/stories/story1.png";
+
     const price = Number(product?.price ?? 0);
-    const discountPercentage = Number(product?.discount_percentage ?? 0);
+    const discountPercentage = Number(
+        product?.discount_percentage ?? 0
+    );
+
     const hasDiscount = discountPercentage > 0;
 
     const formattedPrice = new Intl.NumberFormat("fa-IR").format(price);
@@ -32,42 +35,69 @@ function ProductCard({ product }: ProductCardProps) {
             : "";
 
     return (
-        <Link to={`/products/${product.id}/${product.slug}`} className="block">
-            <div className="flex flex-col w-50 bg-lightSurfaceColor dark:bg-surfaceColor text-lightTextColor dark:text-textColor rounded-lg shadow-lightBoxShadow dark:shadow-darkBoxShadow mb-2">
-                <div className="w-full">
-                    <img src={image} alt={name} />
-                </div>
+        <Link
+            to={`/products/${product.id}/${product.slug}`}
+            className="group block w-full max-w-[220px]"
+        >
+            <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-gray-100 bg-lightSurfaceColor text-lightTextColor shadow-lightBoxShadow transition-all duration-300 hover:-translate-y-1 hover:shadow-xl dark:border-gray-800 dark:bg-surfaceColor dark:text-textColor dark:shadow-darkBoxShadow">
 
-                <div className="flex flex-col p-5">
-                    <p className="font-DanaMedium text-xl">{name}</p>
+                {/* تصویر محصول */}
+                <div className="relative flex h-48 shrink-0 items-center justify-center overflow-hidden bg-gray-50 p-4 dark:bg-gray-900/30">
 
                     {hasDiscount && (
-                        <>
-                            <span className="text-left text-textColorMuted text-sm line-through">
-                                {formattedOriginalPrice
-                                    ? `${formattedOriginalPrice} تومان`
-                                    : ""}
+                        <span className="absolute right-3 top-3 z-10 rounded-lg bg-red-500 px-2.5 py-1 text-xs font-DanaMedium text-white shadow-sm">
+                            {new Intl.NumberFormat("fa-IR").format(
+                                discountPercentage
+                            )}
+                            ٪ تخفیف
+                        </span>
+                    )}
+
+                    <img
+                        src={image}
+                        alt={name}
+                        loading="lazy"
+                        className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-105"
+                    />
+                </div>
+
+                {/* اطلاعات محصول */}
+                <div className="flex flex-1 flex-col justify-between gap-4 p-4">
+
+                    {/* نام محصول */}
+                    <p className="line-clamp-2 min-h-12 text-sm font-DanaMedium leading-6">
+                        {name}
+                    </p>
+
+                    {/* بخش قیمت با ارتفاع ثابت */}
+                    <div className="flex min-h-[52px] flex-col justify-end gap-1">
+
+                        {/* قیمت اصلی */}
+                        <div className="flex h-5 items-center justify-end">
+                            {hasDiscount && formattedOriginalPrice && (
+                                <span className="text-xs text-textColorMuted line-through">
+                                    {formattedOriginalPrice} تومان
+                                </span>
+                            )}
+                        </div>
+
+                        {/* قیمت نهایی */}
+                        <div className="flex h-6 items-center justify-between gap-2">
+                            <span className="text-xs text-textColorMuted">
+                                قیمت:
                             </span>
 
-                            <div className="flex items-center justify-between">
-                                <span className="bg-secondaryColor p-1 rounded-4xl">
-                                    {discountPercentage}%
-                                </span>
-
-                                <span className="text-lg font-medium">
+                            <div className="flex items-center gap-1">
+                                <span className="text-base font-DanaDemiBold text-primaryColor">
                                     {formattedPrice}
                                 </span>
-                            </div>
-                        </>
-                    )}
 
-                    {!hasDiscount && (
-                        <div className="flex items-center justify-end">
-                            <span className="text-lg font-medium">
-                                {formattedPrice}
-                            </span>
+                                <span className="text-xs text-textColorMuted">
+                                    تومان
+                                </span>
+                            </div>
                         </div>
-                    )}
+                    </div>
                 </div>
             </div>
         </Link>

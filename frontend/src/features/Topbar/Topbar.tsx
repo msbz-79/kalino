@@ -10,79 +10,84 @@ import { FaRegMoon } from "react-icons/fa";
 type TopbarProps = {
     dark: boolean;
     changeTheme: () => void;
+    isSearchOpen: boolean;
+    setIsSearchOpen: (value: boolean) => void;
 };
 
-function Topbar({dark, changeTheme}: TopbarProps) {
-    
+function Topbar({
+    dark,
+    changeTheme,
+    isSearchOpen,
+    setIsSearchOpen,
+}: TopbarProps) {
     return (
         <div
             className="
-        fixed top-0
-        z-50
-        w-full
-        bg-lightSurfaceColor
-        dark:bg-surfaceColor
-        shadow-lightBoxShadow
-        dark:shadow-darkBoxShadow
-        transition-colors duration-300
-      "
+                fixed top-0
+                z-50
+                w-full
+                bg-lightSurfaceColor
+                dark:bg-surfaceColor
+                shadow-lightBoxShadow
+                dark:shadow-darkBoxShadow
+                transition-colors duration-300
+            "
         >
-            <div className="flex items-center justify-between px-5 sm:px-10 py-5 lg:py-0 lg:px-40">
+            <div className="flex items-center justify-between px-5 py-5 sm:px-10 lg:px-40 lg:py-0">
                 <div className="flex items-center">
                     {/* Logo */}
                     <div>
                         <Link to="/">
-                            {/* Light Logo */}
                             <img
-                                src="./public/images/logo.png"
+                                src="/images/logo.png"
                                 alt="logo"
                                 className="
-                  block
-                  w-30 h-10
-                  lg:w-40 lg:h-20
-                  dark:hidden
-                "
+                                    block
+                                    h-10 w-30
+                                    lg:h-20 lg:w-40
+                                    dark:hidden
+                                "
                             />
 
-                            {/* Dark Logo */}
                             <img
-                                src="./public/images/darklogo.png"
+                                src="/images/darklogo.png"
                                 alt="logo"
                                 className="
-                  hidden
-                  w-30 h-10
-                  lg:w-40 lg:h-20
-                  dark:block
-                "
+                                    hidden
+                                    h-10 w-30
+                                    lg:h-20 lg:w-40
+                                    dark:block
+                                "
                             />
                         </Link>
                     </div>
 
                     {/* Search */}
                     <div className="mr-5">
-                        <SearchInput />
+                        <SearchInput
+                            isSearchOpen={isSearchOpen}
+                            setIsSearchOpen={setIsSearchOpen}
+                        />
                     </div>
                 </div>
 
                 <div className="flex items-center">
                     {/* Theme */}
-                    <div className="hidden lg:flex ml-2 h-10 w-10
-        items-center justify-center
-        rounded-full
-        border border-slate-200
-        bg-white
-        text-slate-700
-        shadow-lightButtonShadow
-        dark:shadow-darkButtonShadow
-        transition-all duration-300
-        hover:bg-slate-100
-        hover:shadow-md
-        active:scale-95
-        cursor-pointer
-        dark:border-slate-700
-        dark:bg-slate-900
-        dark:text-slate-200
-        dark:hover:bg-slate-800 " onClick={changeTheme}>
+                    <div
+                        className="
+                            ml-2 hidden h-10 w-10 cursor-pointer
+                            items-center justify-center rounded-full
+                            border border-slate-200 bg-white
+                            text-slate-700 shadow-lightButtonShadow
+                            transition-all duration-300 hover:bg-slate-100
+                            hover:shadow-md active:scale-95
+                            dark:border-slate-700 dark:bg-slate-900
+                            dark:text-slate-200 dark:shadow-darkButtonShadow
+                            dark:hover:bg-slate-800
+                            lg:flex
+                        "
+                        onClick={changeTheme}
+                    >
                         {dark ? (
                             <MdOutlineWbSunny className="size-5" />
                         ) : (
@@ -91,17 +96,17 @@ function Topbar({dark, changeTheme}: TopbarProps) {
                     </div>
 
                     {/* Notification */}
-                    <div className="hidden lg:block ml-5">
+                    <div className="ml-5 hidden lg:block">
                         <Notifcation />
                     </div>
 
                     {/* Register */}
                     <Register />
 
-                    <div className="hidden lg:block w-0.5 h-8 bg-borderColor dark:bg-slate-700" />
+                    <div className="hidden h-8 w-0.5 bg-borderColor dark:bg-slate-700 lg:block" />
 
                     {/* Basket */}
-                    <div className="hidden lg:block mr-5">
+                    <div className="mr-5 hidden lg:block">
                         <Basket />
                     </div>
                 </div>

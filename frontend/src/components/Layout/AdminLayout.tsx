@@ -9,6 +9,8 @@ function AdminLayout() {
         return localStorage.getItem("theme") === "dark";
     });
 
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
+
     const changeTheme = () => {
         setDark((prev) => !prev);
     };
@@ -25,7 +27,23 @@ function AdminLayout() {
 
     return (
         <div className="min-h-screen overflow-hidden bg-lightBackgroundColor dark:bg-backgroundColor">
-            <Topbar dark={dark} changeTheme={changeTheme} />
+            <Topbar
+                dark={dark}
+                changeTheme={changeTheme}
+                isSearchOpen={isSearchOpen}
+                setIsSearchOpen={setIsSearchOpen}
+            />
+
+            {isSearchOpen && (
+                <div
+                    className="
+                        fixed inset-0 z-40
+                        bg-black/10
+                        backdrop-blur-sm
+                    "
+                    onClick={() => setIsSearchOpen(false)}
+                />
+            )}
 
             <div
                 className="

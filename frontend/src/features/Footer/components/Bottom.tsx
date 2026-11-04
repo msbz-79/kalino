@@ -51,7 +51,7 @@ function Bottom() {
                     </div>
                 </div>
             </div>
-            <div className="mx-auto text-center text-lightTextColor dark:text-textColor text-sm mt-5 pb-5">2026 © - تمامی حقوق مادی و معنوی برای فروشگاه اینترنتی <span className="text-primaryColor">کالینو</span> محفوظ می‌باشد.</div>
+            <div className="mx-auto text-center text-lightTextColor dark:text-textColor text-sm mt-5 pb-5">{new Date().getFullYear()} © - تمامی حقوق مادی و معنوی برای فروشگاه اینترنتی <span className="text-primaryColor">کالینو</span> محفوظ می‌باشد.</div>
 
         </>
     )

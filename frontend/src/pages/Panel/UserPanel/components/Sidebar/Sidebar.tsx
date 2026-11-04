@@ -35,18 +35,17 @@ function Sidebar() {
     return (
         <aside
             className="
-                w-full min-w-0 shrink-0
-                max-h-[38%] overflow-x-hidden overflow-y-auto
-                rounded-2xl border
-                border-lightBorderColor/60 dark:border-borderColor/60
-                bg-lightSurfaceColor/80 dark:bg-surfaceColor/80
-                shadow-lightCardShadow dark:shadow-darkCardShadow
-                backdrop-blur-2xl backdrop-saturate-150
-                transition-all duration-300
-                sm:rounded-3xl
-                lg:max-h-none lg:w-64 lg:overflow-y-auto
-                xl:w-72
-            "
+    h-full w-full min-w-0 shrink-0
+    max-h-40 overflow-x-hidden overflow-y-auto
+    rounded-2xl border
+    border-lightBorderColor/60 dark:border-borderColor/60
+    bg-lightSurfaceColor/80 dark:bg-surfaceColor/80
+    shadow-lightCardShadow dark:shadow-darkCardShadow
+    backdrop-blur-2xl backdrop-saturate-150
+    transition-all duration-300
+    sm:rounded-3xl
+    lg:max-h-none lg:overflow-y-auto
+"
         >
             <div className="p-3 sm:p-4 lg:p-5">
                 <nav className="font-DanaMedium text-lightTextColor dark:text-textColor">
@@ -79,7 +78,7 @@ function Sidebar() {
                 <div className="my-4 border-t border-lightBorderColor dark:border-borderColor sm:my-5" />
 
                 <div className="font-DanaMedium text-lightTextColor dark:text-textColor">
-                    <div
+                    <NavLink to="/panel/information"
                         className="
                             mb-2 flex min-w-0 cursor-pointer items-center gap-2
                             rounded-xl p-3 text-sm transition-all duration-300
@@ -90,7 +89,7 @@ function Sidebar() {
                     >
                         <FaRegUser className={iconClass} />
                         <span>اطلاعات حساب کاربری</span>
-                    </div>
+                    </NavLink>
 
                     <button
                         type="button"

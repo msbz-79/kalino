@@ -90,7 +90,7 @@ function Sidebar() {
                 <div className="my-4 border-t border-lightBorderColor dark:border-borderColor sm:my-5" />
 
                 <div className="font-DanaMedium text-lightTextColor dark:text-textColor">
-                    <div
+                    <NavLink to="/admin/information"
                         className="
                             mb-2 flex min-w-0 cursor-pointer items-center gap-2
                             rounded-xl p-3 text-sm transition-all duration-300
@@ -101,7 +101,7 @@ function Sidebar() {
                     >
                         <FaRegUser className={iconClass} />
                         <span>اطلاعات حساب کاربری</span>
-                    </div>
+                    </NavLink >
 
                     <button
                         type="button"

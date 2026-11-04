@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Database\Factories\UserFactory;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -13,7 +14,7 @@ use Laravel\Sanctum\HasApiTokens;
 
 #[Fillable(['name', 'email', 'password'])]
 #[Hidden(['password', 'remember_token'])]
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
@@ -31,30 +32,27 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'wallet_balance' => 'decimal:2',
         ];
     }
 
-    /**
-     * آدرس‌های ذخیره‌شده توسط کاربر
-     */
     public function addresses(): HasMany
     {
         return $this->hasMany(Address::class);
     }
 
-    /**
-     * سفارش‌های ثبت‌شده توسط کاربر
-     */
     public function orders(): HasMany
     {
         return $this->hasMany(Order::class);
     }
 
-        /**
-     * نظرات ثبت‌شده توسط کاربر
-     */
     public function comments(): HasMany
     {
         return $this->hasMany(Comment::class);
+    }
+
+    public function walletTransactions(): HasMany
+    {
+        return $this->hasMany(WalletTransaction::class);
     }
 }

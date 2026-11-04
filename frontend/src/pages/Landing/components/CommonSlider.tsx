@@ -1,10 +1,25 @@
+
 import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
 import "swiper/css/pagination";
-import { Link } from "react-router";
+
 import ProductCard from "./ProductCard";
 
-function CommonSlider({ products = [] }) {
+type Product = {
+    id: number;
+    name: string;
+    image: string | null;
+    slug: string;
+    price: number;
+    discount_percentage?: number | null;
+    original_price?: number | null;
+};
+
+type CommonSliderProps = {
+    products?: Product[];
+};
+
+function CommonSlider({ products = [] }: CommonSliderProps) {
     return (
         <Swiper
             dir="rtl"
@@ -21,11 +36,9 @@ function CommonSlider({ products = [] }) {
             {products.map((product) => (
                 <SwiperSlide
                     key={product.id}
-                    className="w-50! h-auto!"
+                    className="h-auto! w-50!"
                 >
-                    <Link to={`/products/${product.id}`}>
-                        <ProductCard product={product} />
-                    </Link>
+                    <ProductCard product={product} />
                 </SwiperSlide>
             ))}
         </Swiper>

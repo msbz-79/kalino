@@ -6,6 +6,7 @@ use App\Models\Product;
 use App\Models\SpecialOfferSetting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
@@ -16,10 +17,30 @@ class ProductController extends Controller
         $validated = $request->validate([
             'search' => ['sometimes', 'string', 'max:255'],
             'min_price' => ['sometimes', 'integer', 'min:0'],
-            'max_price' => ['sometimes', 'integer', 'min:0', 'gte:min_price'],
-            'sort' => ['sometimes', 'in:newest,price_asc,price_desc'],
+            'max_price' => [
+                'sometimes',
+                'integer',
+                'min:0',
+                function ($attribute, $value, $fail) use ($request) {
+                    $minPrice = $request->input('min_price');
+
+                    if (
+                        $minPrice !== null &&
+                        $value < $minPrice
+                    ) {
+                        $fail('حداکثر قیمت باید بزرگ‌تر یا مساوی حداقل قیمت باشد.');
+                    }
+                },
+            ],
+            'brand' => ['sometimes', 'string', 'max:255'],
+            'color' => ['sometimes', 'string', 'max:100'],
+            'sort' => [
+                'sometimes',
+                'in:newest,price_asc,price_desc,bestselling',
+            ],
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:50'],
             'status' => ['sometimes', 'in:all,active,inactive'],
+            'category' => ['sometimes', 'string', 'exists:categories,slug'],
         ]);
 
         $user = $request->user();
@@ -32,43 +53,115 @@ class ProductController extends Controller
 
         $query = Product::query();
 
+        // فیلتر وضعیت محصولات
         if ($status === 'active') {
-            $query->where('is_active', true);
+            $query->where('products.is_active', true);
         } elseif ($status === 'inactive') {
-            $query->where('is_active', false);
+            $query->where('products.is_active', false);
         }
 
+        // فیلتر دسته‌بندی محصولات
+        if (!empty($validated['category'])) {
+            $query->whereHas('category', function ($q) use ($validated) {
+                $q->where('slug', $validated['category'])
+                    ->where('is_active', true);
+            });
+        }
+
+        // جستجو در نام و توضیحات محصول
         if (!empty($validated['search'])) {
             $search = $validated['search'];
 
             $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('description', 'like', "%{$search}%");
+                $q->where('products.name', 'like', "%{$search}%")
+                    ->orWhere('products.description', 'like', "%{$search}%");
             });
         }
 
+        // فیلتر برند
+        if (!empty($validated['brand'])) {
+            $query->where('products.brand', $validated['brand']);
+        }
+
+        // فیلتر رنگ
+        if (!empty($validated['color'])) {
+            $query->whereJsonContains(
+                'products.colors',
+                ['name' => $validated['color']]
+            );
+        }
+
+        // فیلتر حداقل قیمت
         if (isset($validated['min_price'])) {
-            $query->where('price', '>=', $validated['min_price']);
+            $query->where(
+                'products.price',
+                '>=',
+                $validated['min_price']
+            );
         }
 
+        // فیلتر حداکثر قیمت
         if (isset($validated['max_price'])) {
-            $query->where('price', '<=', $validated['max_price']);
+            $query->where(
+                'products.price',
+                '<=',
+                $validated['max_price']
+            );
         }
 
+        // مرتب‌سازی محصولات
         $sort = $validated['sort'] ?? 'newest';
 
         if ($sort === 'price_asc') {
-            $query->orderBy('price', 'asc');
+            $query->orderBy('products.price', 'asc');
         } elseif ($sort === 'price_desc') {
-            $query->orderBy('price', 'desc');
+            $query->orderBy('products.price', 'desc');
+        } elseif ($sort === 'bestselling') {
+
+            // محاسبه مجموع فروش محصولات در سفارش‌های پرداخت‌شده
+            $salesQuery = DB::table('order_items')
+                ->join(
+                    'orders',
+                    'orders.id',
+                    '=',
+                    'order_items.order_id'
+                )
+                ->select(
+                    'order_items.product_id',
+                    DB::raw('SUM(order_items.quantity) as total_sold')
+                )
+                ->where('orders.payment_status', 'paid')
+                ->whereNotNull('orders.paid_at')
+                ->whereNull('orders.deleted_at')
+                ->whereNull('order_items.deleted_at')
+                ->groupBy('order_items.product_id');
+
+            // اتصال اطلاعات فروش به محصولات
+            $query->leftJoinSub(
+                $salesQuery,
+                'sales',
+                function ($join) {
+                    $join->on(
+                        'products.id',
+                        '=',
+                        'sales.product_id'
+                    );
+                }
+            );
+
+            $query->select('products.*')
+                ->selectRaw('COALESCE(sales.total_sold, 0) as total_sold')
+                ->orderByDesc('total_sold');
         } else {
-            $query->latest();
+            $query->latest('products.created_at');
         }
 
+        // صفحه‌بندی محصولات
         $products = $query
             ->paginate($validated['per_page'] ?? 10)
             ->withQueryString();
 
+        // تبدیل مسیر تصاویر به URL قابل دسترسی
         $products->getCollection()->transform(function ($product) {
             $product->image = $product->image
                 ? asset('storage/' . $product->image)
@@ -79,6 +172,83 @@ class ProductController extends Controller
 
         return response()->json([
             'data' => $products,
+        ]);
+    }
+
+    /**
+     * دریافت گزینه‌های فیلتر محصولات
+     * شامل برندها، رنگ‌ها و محدوده قیمت محصولات فعال
+     */
+    public function filterOptions(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'category' => [
+                'sometimes',
+                'string',
+                'exists:categories,slug',
+            ],
+        ]);
+
+        $query = Product::query()
+            ->where('products.is_active', true);
+
+        // محدودکردن گزینه‌های فیلتر به دسته‌بندی انتخاب‌شده
+        if (!empty($validated['category'])) {
+            $query->whereHas('category', function ($q) use ($validated) {
+                $q->where('slug', $validated['category'])
+                    ->where('is_active', true);
+            });
+        }
+
+        // دریافت فقط ستون‌های موردنیاز
+        $products = $query->get([
+            'brand',
+            'colors',
+            'price',
+        ]);
+
+        // استخراج برندهای یکتا
+        $brands = $products
+            ->pluck('brand')
+            ->filter(fn($brand) => is_string($brand) && trim($brand) !== '')
+            ->map(fn($brand) => trim($brand))
+            ->unique()
+            ->sort()
+            ->values();
+
+        // استخراج رنگ‌های محصولات
+        $colors = $products
+            ->flatMap(function ($product) {
+                return is_array($product->colors)
+                    ? $product->colors
+                    : [];
+            })
+            ->filter(function ($color) {
+                return is_array($color)
+                    && !empty($color['name'])
+                    && !empty($color['hex']);
+            })
+            ->map(function ($color) {
+                return [
+                    'name' => trim($color['name']),
+                    'hex' => strtoupper($color['hex']),
+                ];
+            })
+            ->unique(fn($color) => mb_strtolower($color['name']))
+            ->sortBy('name')
+            ->values();
+
+        // محاسبه کمترین و بیشترین قیمت محصولات
+        $minPrice = $products->min('price') ?? 0;
+        $maxPrice = $products->max('price') ?? 0;
+
+        return response()->json([
+            'data' => [
+                'brands' => $brands,
+                'colors' => $colors,
+                'min_price' => (int) $minPrice,
+                'max_price' => (int) $maxPrice,
+            ],
         ]);
     }
 
@@ -229,7 +399,6 @@ class ProductController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        // ابتدا JSON رنگ‌ها را به آرایه تبدیل می‌کنیم.
         $this->prepareColors($request);
 
         $validated = $request->validate([
@@ -237,6 +406,8 @@ class ProductController extends Controller
             'description' => ['nullable', 'string'],
             'price' => ['required', 'integer', 'min:0'],
             'stock' => ['sometimes', 'integer', 'min:0'],
+            'category_id' => ['nullable', 'integer', 'exists:categories,id'],
+            'brand' => ['sometimes', 'nullable', 'string', 'max:255'],
             'image' => [
                 'nullable',
                 'image',
@@ -247,7 +418,6 @@ class ProductController extends Controller
             'is_special_offer' => ['sometimes', 'boolean'],
         ]);
 
-        // رنگ‌ها جداگانه اعتبارسنجی می‌شوند.
         $validated = array_merge(
             $validated,
             $this->validateColors($request)
@@ -307,7 +477,6 @@ class ProductController extends Controller
 
     public function update(Request $request, Product $product): JsonResponse
     {
-        // ابتدا JSON رنگ‌ها را به آرایه تبدیل می‌کنیم.
         $this->prepareColors($request);
 
         $validated = $request->validate([
@@ -315,6 +484,8 @@ class ProductController extends Controller
             'description' => ['sometimes', 'nullable', 'string'],
             'price' => ['sometimes', 'required', 'integer', 'min:0'],
             'stock' => ['sometimes', 'integer', 'min:0'],
+            'category_id' => ['sometimes', 'nullable', 'integer', 'exists:categories,id'],
+            'brand' => ['sometimes', 'nullable', 'string', 'max:255'],
             'image' => [
                 'sometimes',
                 'nullable',
@@ -326,7 +497,6 @@ class ProductController extends Controller
             'is_special_offer' => ['sometimes', 'boolean'],
         ]);
 
-        // فقط در صورت ارسال colors، رنگ‌ها را اعتبارسنجی می‌کنیم.
         $validated = array_merge(
             $validated,
             $this->validateColors($request)
@@ -346,7 +516,6 @@ class ProductController extends Controller
                 $this->validateDiscount($request, $effectivePrice)
             );
         } elseif (array_key_exists('price', $validated)) {
-            // اگر قیمت اصلی تغییر کرده، سازگاری تخفیف قبلی را بررسی می‌کنیم.
             $percentage = $product->discount_percentage !== null
                 ? (int) $product->discount_percentage
                 : null;

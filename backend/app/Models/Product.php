@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Sluggable\Attributes\Sluggable;
 
@@ -17,6 +18,8 @@ class Product extends Model
         'name',
         'slug',
         'description',
+        'category_id',
+        'brand',
         'colors',
         'price',
         'discount_percentage',
@@ -35,17 +38,23 @@ class Product extends Model
             'discount_percentage' => 'integer',
             'discount_price' => 'integer',
             'is_active' => 'boolean',
+            'is_special_offer' => 'boolean',
         ];
     }
 
-    /**
-     * اقلام سفارش‌هایی که به این محصول مربوط هستند
-     */
+    // دسته‌بندی متعلق به این محصول
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(Category::class);
+    }
+
+    // اقلام سفارش‌های مربوط به این محصول
     public function orderItems(): HasMany
     {
         return $this->hasMany(OrderItem::class);
     }
 
+    // نظرات مربوط به این محصول
     public function comments(): HasMany
     {
         return $this->hasMany(Comment::class);

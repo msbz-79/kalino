@@ -27,6 +27,7 @@ import CheckoutPage from "./pages/Checkout/CheckoutPage";
 import ReviewOrderPage from "./pages/ReviewOrder/Page";
 import PaymentResultPage from "./pages/PaymentResult/Page";
 import AccountInformation from "./pages/UserInformation/Page";
+import NotFound from "./pages/NotFound/Page";
 
 const router = createBrowserRouter([
   {
@@ -41,6 +42,8 @@ const router = createBrowserRouter([
       { path: "/checkout", element: <CheckoutPage /> },
       { path: "/review-order", element: <ReviewOrderPage /> },
       { path: "/payment-result", element: <PaymentResultPage /> },
+      { path: "*", element: <NotFound />,
+},
     ],
   },
   { path: "/login", element: <Login /> },

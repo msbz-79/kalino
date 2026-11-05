@@ -60,8 +60,8 @@ type PendingAction = {
     status: "approved" | "rejected";
 };
 
-const API_URL = "http://localhost:8000/api";
-const CSRF_URL = "http://localhost:8000/sanctum/csrf-cookie";
+const API_URL = "https://kalino-web-owq-kalino.runflare.cloud/api";
+const CSRF_URL = "https://kalino-web-owq-kalino.runflare.cloud/sanctum/csrf-cookie";
 
 const statusLabels: Record<CommentStatus, string> = {
     pending: "در انتظار بررسی",

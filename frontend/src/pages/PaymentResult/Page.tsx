@@ -27,7 +27,7 @@ type RequestState = "loading" | "success" | "failed" | "error";
 
 type PaymentType = "wallet" | "order" | "unknown";
 
-const API_URL = "http://localhost:8000/api";
+const API_URL = "https://kalino-web-owq-kalino.runflare.cloud/api";
 
 export default function PaymentResultPage() {
   const [searchParams] = useSearchParams();

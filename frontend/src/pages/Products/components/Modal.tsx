@@ -40,7 +40,7 @@ type ApiResponse = {
     errors?: Record<string, string[]>;
 };
 
-const API_URL = "http://localhost:8000";
+const API_URL = "https://kalino-web-owq-kalino.runflare.cloud";
 
 function getCsrfToken(): string {
     const cookie = document.cookie

@@ -27,7 +27,7 @@ type OrdersResponse = {
   orders: PaginatedOrders;
 };
 
-const API_URL = "http://localhost:8000/api/orders";
+const API_URL = "https://kalino-web-owq-kalino.runflare.cloud/api/orders";
 
 const orderStatusLabels: Record<string, string> = {
   pending: "در انتظار بررسی",

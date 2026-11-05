@@ -38,8 +38,8 @@ type PasswordForm = {
   password_confirmation: string;
 };
 
-const API_URL = "http://localhost:8000/api";
-const CSRF_URL = "http://localhost:8000/sanctum/csrf-cookie";
+const API_URL = "https://kalino-web-owq-kalino.runflare.cloud/api";
+const CSRF_URL = "https://kalino-web-owq-kalino.runflare.cloud/sanctum/csrf-cookie";
 
 const inputClass =
   "mt-2 w-full rounded-xl border border-lightBorderColor bg-lightSurfaceColor px-4 py-3 text-sm text-lightTextColor dark:text-textColor outline-none transition-colors placeholder:text-gray-500 dark:placeholder:text-textColorMuted focus:border-primaryColor dark:border-white/10 dark:bg-backgroundColor";

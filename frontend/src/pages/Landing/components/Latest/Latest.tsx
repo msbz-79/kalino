@@ -22,7 +22,7 @@ function Latest() {
         async function fetchProducts() {
             try {
                 const response = await fetch(
-                    "http://localhost:8000/api/products?sort=newest&per_page=10",
+                    "https://kalino-web-owq-kalino.runflare.cloud/api/products?sort=newest&per_page=10",
                     { signal: controller.signal }
                 );
 

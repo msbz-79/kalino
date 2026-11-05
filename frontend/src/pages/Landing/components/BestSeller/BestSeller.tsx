@@ -18,7 +18,7 @@ type ApiResponse = {
     data: Product[];
 };
 
-const API_URL = "http://localhost:8000";
+const API_URL = "https://kalino-web-owq-kalino.runflare.cloud";
 
 function BestSeller() {
     const [products, setProducts] = useState<Product[]>([]);

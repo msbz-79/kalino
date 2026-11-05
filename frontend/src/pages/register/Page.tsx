@@ -7,7 +7,7 @@ import { useState, type FormEvent } from "react";
 import toast from "react-hot-toast";
 import { useAuth } from "../../context/AuthContext";
 
-const API_URL = "http://localhost:8000";
+const API_URL = "https://kalino-web-owq-kalino.runflare.cloud";
 
 function Register() {
     const navigate = useNavigate();

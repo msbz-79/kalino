@@ -25,7 +25,7 @@ type ApiResponse = {
     };
 };
 
-const API_URL = "http://localhost:8000";
+const API_URL = "https://kalino-web-owq-kalino.runflare.cloud";
 
 function SearchInput({
     isSearchOpen,

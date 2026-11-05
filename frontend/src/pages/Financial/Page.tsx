@@ -12,7 +12,7 @@ import { FiCalendar, FiCreditCard } from "react-icons/fi";
 import Header from "./components/Header";
 import JalaliDatePicker from "./components/JalaliDatePicker";
 
-const API_URL = "http://localhost:8000";
+const API_URL = "https://kalino-web-owq-kalino.runflare.cloud";
 
 type SalesItem = {
     date: string;

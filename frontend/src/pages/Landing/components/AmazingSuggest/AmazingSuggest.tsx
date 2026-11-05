@@ -5,7 +5,7 @@ import Allbutton from "../Allbutton";
 import CommonSlider from "../CommonSlider";
 import Timer from "./components/Timer";
 
-const API_URL = "http://localhost:8000";
+const API_URL = "https://kalino-web-owq-kalino.runflare.cloud";
 
 function AmazingSuggest() {
     const [products, setProducts] = useState([]);

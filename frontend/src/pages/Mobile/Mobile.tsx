@@ -119,7 +119,7 @@ function Mobile() {
         async function fetchFilterOptions() {
             try {
                 const response = await fetch(
-                    "http://localhost:8000/api/products/filter-options?category=mobile",
+                    "https://kalino-web-owq-kalino.runflare.cloud/api/products/filter-options?category=mobile",
                     {
                         method: "GET",
                         credentials: "include",
@@ -278,7 +278,7 @@ function Mobile() {
                 }
 
                 const response = await fetch(
-                    `http://localhost:8000/api/products?${params.toString()}`,
+                    `https://kalino-web-owq-kalino.runflare.cloud/api/products?${params.toString()}`,
                     {
                         method: "GET",
                         credentials: "include",

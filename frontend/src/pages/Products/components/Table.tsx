@@ -67,7 +67,7 @@ function Table({ products, onProductChanged }: TableProps) {
         if (!selectedProduct) return;
 
         const response = await fetch(
-            `http://localhost:8000/api/products/${selectedProduct.id}`,
+            `https://kalino-web-owq-kalino.runflare.cloud/api/products/${selectedProduct.id}`,
             {
                 method: "DELETE",
                 credentials: "include",

@@ -50,7 +50,7 @@ type ProductsApiResponse = {
     message?: string;
 };
 
-const API_URL = "http://localhost:8000";
+const API_URL = "https://kalino-web-owq-kalino.runflare.cloud";
 
 function toBoolean(value: boolean | number | string | undefined): boolean {
     return (

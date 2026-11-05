@@ -28,7 +28,7 @@ type AuthProviderProps = {
     children: ReactNode;
 };
 
-const API_URL = "http://localhost:8000";
+const API_URL = "https://kalino-web-owq-kalino.runflare.cloud";
 
 async function getCsrfToken(): Promise<string> {
     const response = await fetch(`${API_URL}/sanctum/csrf-cookie`, {

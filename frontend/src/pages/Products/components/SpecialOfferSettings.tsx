@@ -2,8 +2,8 @@ import { useEffect, useState, type FormEvent } from "react";
 import { LuCalendarClock, LuSave, LuSparkles } from "react-icons/lu";
 import toast from "react-hot-toast";
 
-const API_URL = "http://localhost:8000/api/admin/special-offer-settings";
-const API_BASE_URL = "http://localhost:8000";
+const API_URL = "https://kalino-web-owq-kalino.runflare.cloud/api/admin/special-offer-settings";
+const API_BASE_URL = "https://kalino-web-owq-kalino.runflare.cloud";
 
 function getCookie(name: string): string {
     const cookie = document.cookie

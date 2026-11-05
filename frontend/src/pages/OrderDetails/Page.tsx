@@ -12,7 +12,7 @@ import {
     FiHome,
 } from "react-icons/fi";
 
-const API_URL = "http://localhost:8000/api/orders";
+const API_URL = "https://kalino-web-owq-kalino.runflare.cloud/api/orders";
 
 type OrderItem = {
     id: number;

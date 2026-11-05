@@ -112,8 +112,8 @@ type StatusOption = {
     label: string;
 };
 
-const API_URL = "http://localhost:8000/api";
-const CSRF_URL = "http://localhost:8000/sanctum/csrf-cookie";
+const API_URL = "https://kalino-web-owq-kalino.runflare.cloud/api";
+const CSRF_URL = "https://kalino-web-owq-kalino.runflare.cloud/sanctum/csrf-cookie";
 
 const orderStatusLabels: Record<OrderStatus, string> = {
     pending: "در انتظار بررسی",
@@ -298,7 +298,7 @@ function getProductImageUrl(
         return image;
     }
 
-    return `http://localhost:8000/storage/${image.replace(/^\/+/, "")}`;
+    return `https://kalino-web-owq-kalino.runflare.cloud/storage/${image.replace(/^\/+/, "")}`;
 }
 
 function UserOrders() {

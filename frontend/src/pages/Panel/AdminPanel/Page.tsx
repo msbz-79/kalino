@@ -12,7 +12,7 @@ import {
     LuWallet,
 } from "react-icons/lu";
 
-const API_URL = "http://localhost:8000/api";
+const API_URL = "https://kalino-web-owq-kalino.runflare.cloud/api";
 
 type SalesItem = {
     label: string;
@@ -143,7 +143,7 @@ function getProductImageUrl(image: string | null): string | null {
         return image;
     }
 
-    return `http://localhost:8000/storage/${image.replace(/^\/+/, "")}`;
+    return `https://kalino-web-owq-kalino.runflare.cloud/storage/${image.replace(/^\/+/, "")}`;
 }
 
 function SectionHeader({

@@ -6,7 +6,7 @@ import toast from "react-hot-toast";
 import { useCart } from "../../context/CartContext";
 import { useAuth } from "../../context/AuthContext";
 
-const API_URL = "http://localhost:8000";
+const API_URL = "https://kalino-web-owq-kalino.runflare.cloud";
 
 type Address = {
   id: number;

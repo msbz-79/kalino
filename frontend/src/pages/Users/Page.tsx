@@ -27,7 +27,7 @@ type ApiUser = {
     created_at: string;
 };
 
-const API_URL = "http://localhost:8000";
+const API_URL = "https://kalino-web-owq-kalino.runflare.cloud";
 
 function Users() {
     const [users, setUsers] = useState<User[]>([]);

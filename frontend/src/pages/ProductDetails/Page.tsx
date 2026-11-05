@@ -77,7 +77,7 @@ function ProductDetails() {
         setError("");
 
         const response = await fetch(
-          `http://localhost:8000/api/products/${id}`,
+          `https://kalino-web-owq-kalino.runflare.cloud/api/products/${id}`,
           { signal: controller.signal }
         );
 
@@ -173,7 +173,7 @@ function ProductDetails() {
       image: product.image
         ? product.image.startsWith("http")
           ? product.image
-          : `http://localhost:8000/storage/${product.image.replace(
+          : `https://kalino-web-owq-kalino.runflare.cloud/storage/${product.image.replace(
             /^\/?storage\//,
             ""
           )}`
@@ -239,7 +239,7 @@ function ProductDetails() {
   const imageUrl = product.image
     ? product.image.startsWith("http")
       ? product.image
-      : `http://localhost:8000/storage/${product.image.replace(
+      : `https://kalino-web-owq-kalino.runflare.cloud/storage/${product.image.replace(
         /^\/?storage\//,
         ""
       )}`

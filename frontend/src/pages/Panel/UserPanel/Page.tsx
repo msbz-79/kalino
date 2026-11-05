@@ -16,8 +16,8 @@ import {
 } from "react-icons/fi";
 import toast from "react-hot-toast";
 
-const API_URL = "http://localhost:8000/api";
-const CSRF_URL = "http://localhost:8000/sanctum/csrf-cookie";
+const API_URL = "https://kalino-web-owq-kalino.runflare.cloud/api";
+const CSRF_URL = "https://kalino-web-owq-kalino.runflare.cloud/sanctum/csrf-cookie";
 
 type CommentStatus = "pending" | "approved" | "rejected";
 

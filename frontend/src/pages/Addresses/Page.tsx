@@ -50,8 +50,8 @@ type ApiResponse<T> = {
     errors?: Record<string, string[]>;
 };
 
-const API_URL = "http://localhost:8000/api/addresses";
-const CSRF_URL = "http://localhost:8000/sanctum/csrf-cookie";
+const API_URL = "https://kalino-web-owq-kalino.runflare.cloud/api/addresses";
+const CSRF_URL = "https://kalino-web-owq-kalino.runflare.cloud/sanctum/csrf-cookie";
 
 const emptyForm: AddressForm = {
     recipient_name: "",
